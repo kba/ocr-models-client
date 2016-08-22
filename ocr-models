@@ -1,0 +1,79 @@
+#!/bin/bash
+
+set -euo pipefail
+
+REGISTRY=http://data.bib.uni-mannheim.de/ocr-models
+
+logerr () { echo -e "\e[0m[\e[1;31merror\e[0m] $*" >&2; }
+loginfo () { echo -e "\e[0m[\e[32minfo\e[0m] $*" >&2; }
+
+usage () {
+    echo "Usage: $0 [opts] <download|install|query> <cmd-args>
+
+    Options:
+        --registry  Alternative registry. Default: '$REGISTRY'
+
+    Commands:
+
+        download <name> [opts]  Download the model <name>
+            -d      output directory. Default: $PWD
+        install <name>          (NIH) Install the model <name> for engine <engine>
+        query                   (NIH) Query the registry
+    "
+}
+
+do_download () {
+    declare -a zip_args=(
+        -x DESCRIPTION
+    )
+    while [[ "$#" -gt 0 && "$1" = -* ]];do
+        zip_args+=("$1" "$2")
+        shift; shift;
+    done
+    if [[ "$#" = 0 ]];then
+        logerr
+        logerr "Must provide models to download"
+        logerr
+        usage
+        exit 1
+    fi
+    for model in "$@";do
+        url="$REGISTRY/zip/$model.zip"
+        zipfile="${model//\//__}.zip"
+        loginfo "Loading ZIP '$model' to '$zipfile' from '$url'"
+        wget --progress=bar:force -O"$zipfile" "$url"
+        loginfo "Unzipping '$zipfile'"
+        unzip -o "$zipfile" "${zip_args[@]}"
+        loginfo "Removing '$zipfile'"
+        rm "$zipfile"
+    done
+}
+
+main () { 
+    while [[ "$#" -gt 0 && "$1" = -* ]];do
+        case "$1" in
+            -h|--help) usage; exit ;;
+            --registry) REGISTRY=$2; shift ;;
+        esac
+        shift
+    done
+    if [[ "$#" = 0 ]];then
+        logerr
+        logerr "Must specifcy action"
+        logerr
+        usage
+        exit 1
+    fi
+    ACTION="$1"
+    shift
+    if ! type "do_$ACTION" >/dev/null 2>/dev/null;then
+        logerr
+        logerr "No such action: $ACTION"
+        logerr
+        usage
+        exit 1
+    fi
+    "do_$ACTION" "$@"
+}
+
+main "$@"

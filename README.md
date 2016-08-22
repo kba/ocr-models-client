@@ -1,4 +1,4 @@
-# ocr-model-installer
+# ocr-models-client
 OCR engine model installer, client to ocr-models
 
 ## Features
